@@ -1,45 +1,34 @@
 from invoke import task, Collection, Context
 
-
 @task
 def commit(ctx, message="init"):
     ctx.run("git add .")
     ctx.run(f'git commit -m "{message}"')
 
-
 @task
 def quit(ctx):
     print("Copyright © 2024 Charudatta")
-
 
 @task
 def test(ctx):
     ctx.run("python -m unittest discover -s tests")
 
-
 @task
 def run_api(ctx):
-    with ctx.prefix("conda activate webdev"):
-        ctx.run("python src/app.py")
+    ctx.run("python src/app.py")
 
-
+@task
 def run_cli(ctx):
-    with ctx.prefix("conda activate webdev"):
-        ctx.run("python src/cli.py")
-
+    ctx.run("python src/cli.py")
 
 @task(default=True)
 def default(ctx):
-    # Get a list of tasks
     tasks = sorted(ns.tasks.keys())
-    # Display tasks and prompt user
     for i, task_name in enumerate(tasks, 1):
         print(f"{i}: {task_name}")
     choice = int(input("Enter the number of your choice: "))
     ctx.run(f"invoke {tasks[choice - 1]}")
 
-
-# Create a collection of tasks
 ns = Collection(
     commit,
     quit,
