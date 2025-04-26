@@ -27,7 +27,7 @@ Generate SVGs.
 
 ## Getting Started 🌱
 
-Run `just` cmd in command prompt.
+Run `invoke` cmd in the command prompt.
 
 ✨[Report a 🐛 or Request a ⭐](https://github.com/charudatta10/legendary-dollop/issues)✨
 
