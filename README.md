@@ -2,7 +2,7 @@
 # SVG Generator
 
 <!-- Badges: Project Status GitHub -->
-![license](https://flat.badgen.net/static/license/GPL-3.0/blue)
+![license](https://flat.badgen.net/static/license/EULA/blue)
 ![release](https://flat.badgen.net/github/release/charudatta10/SVG_Generator)
 ![commits](https://flat.badgen.net/github/commits/charudatta10/SVG_Generator)
 ![last-commit](https://flat.badgen.net/github/last-commit/charudatta10/SVG_Generator)
@@ -13,7 +13,7 @@
 ![project](https://flat.badgen.net///static/project/SVG_Generator)
 
 <!-- Badges: Tools used -->
-`python` `just` `gig` `jinja2` `flask` `waitress` 
+`python` `just` `gig` `jinja2` `flask` `Waitress` 
 
 ## Documentation 🗎
 
@@ -21,8 +21,8 @@ Generate SVGs.
 
 ## Features 🌟
 
-- create banners. 
-- create badges. 
+- Create banners. 
+- Create badges. 
  
 
 ## Getting Started 🌱
@@ -31,6 +31,6 @@ Run `just` cmd in command prompt.
 
 ✨[Report a 🐛 or Request a ⭐](https://github.com/charudatta10/legendary-dollop/issues)✨
 
-Copyright :copyright: 2024 CK :tm: @ charudatta10.   
+© 2025 Charudatta Korde. Some Rights Reserved. Attribution Required. Non-Commercial Use & Share-Alike.  
 
 <!-- Acknowledgment, References, Misc -->
