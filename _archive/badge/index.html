@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Standalone SVG Badge Builder</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;background:#f3f4f6;margin:0;padding:24px}
+.container{max-width:1000px;margin:auto;background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.grid{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:center}
+input,select{padding:8px}
+button{padding:9px 16px;margin:8px 6px 0 0;cursor:pointer}
+#preview{margin:18px 0;padding:18px;border:1px solid #ddd;background:#fafafa;text-align:center}
+textarea{width:100%;height:220px;font-family:Consolas,monospace}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Standalone SVG Badge Builder</h2>
+
+<div class="grid">
+<label>Mode</label>
+<select id="mode">
+<option value="single">Single Color</option>
+<option value="double" selected>Two Color (Shields)</option>
+</select>
+
+<label>Left Text</label>
+<input id="leftText" value="🍵">
+
+<label>Right Text</label>
+<input id="rightText" value="Buy me a chai">
+
+<label>Left Color</label>
+<input type="color" id="leftColor" value="#555555">
+
+<label>Right Color</label>
+<input type="color" id="rightColor" value="#ff9800">
+
+<label>Text Color</label>
+<input type="color" id="textColor" value="#ffffff">
+
+<label>Shape</label>
+<select id="shape">
+<option value="pill">Pill</option>
+<option value="rounded">Rounded</option>
+<option value="square">Square</option>
+</select>
+
+<label>Outline</label>
+<input type="checkbox" id="outline">
+
+<label>Outline Color</label>
+<input type="color" id="outlineColor" value="#222222">
+</div>
+
+<div id="preview"></div>
+
+<button onclick="copySVG()">Copy SVG</button>
+<button onclick="downloadSVG()">Download SVG</button>
+
+<h3>SVG Source</h3>
+<textarea id="source" readonly></textarea>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+function esc(s){
+ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function textWidth(t){
+ return Math.max(24,t.length*8+20);
+}
+
+function render(){
+
+ const mode=$("mode").value;
+ const l=esc($("leftText").value);
+ const r=esc($("rightText").value);
+
+ const lw=textWidth(l);
+ const rw=textWidth(r);
+
+ const h=28;
+ const radius={
+   square:0,
+   rounded:5,
+   pill:14
+ }[$("shape").value];
+
+ const stroke=$("outline").checked?2:0;
+ const strokeColor=$("outlineColor").value;
+
+ let svg='';
+
+ if(mode==="single"){
+
+   const w=rw;
+
+   svg=`
+<svg xmlns="http://www.w3.org/2000/svg"
+ width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+<rect
+ width="${w}"
+ height="${h}"
+ rx="${radius}"
+ fill="${$("rightColor").value}"
+ ${stroke?`stroke="${strokeColor}" stroke-width="${stroke}"`:''}/>
+<text
+ x="${w/2}"
+ y="18"
+ text-anchor="middle"
+ font-family="Verdana"
+ font-size="11"
+ fill="${$("textColor").value}">${r}</text>
+</svg>`;
+
+ }else{
+
+   const w=lw+rw;
+
+   svg=`
+<svg xmlns="http://www.w3.org/2000/svg"
+ width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+
+<defs>
+<clipPath id="clip">
+<rect width="${w}" height="${h}" rx="${radius}"/>
+</clipPath>
+</defs>
+
+<g clip-path="url(#clip)">
+<rect width="${lw}" height="${h}" fill="${$("leftColor").value}"/>
+<rect x="${lw}" width="${rw}" height="${h}" fill="${$("rightColor").value}"/>
+</g>
+
+${stroke?`<rect width="${w}" height="${h}" rx="${radius}" fill="none" stroke="${strokeColor}" stroke-width="${stroke}"/>`:''}
+
+<text
+x="${lw/2}"
+y="18"
+text-anchor="middle"
+font-family="Verdana"
+font-size="11"
+fill="${$("textColor").value}">
+${l}
+</text>
+
+<text
+x="${lw+rw/2}"
+y="18"
+text-anchor="middle"
+font-family="Verdana"
+font-size="11"
+fill="${$("textColor").value}">
+${r}
+</text>
+
+</svg>`;
+ }
+
+ $("preview").innerHTML=svg;
+ $("source").value=svg.trim();
+}
+
+document.querySelectorAll("input,select").forEach(e=>{
+ e.addEventListener("input",render);
+ e.addEventListener("change",render);
+});
+
+async function copySVG(){
+ await navigator.clipboard.writeText($("source").value);
+ alert("SVG copied");
+}
+
+function downloadSVG(){
+ const blob=new Blob([$("source").value],{type:"image/svg+xml"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="badge.svg";
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),100);
+}
+
+render();
+</script>
+</body>
+</html>
