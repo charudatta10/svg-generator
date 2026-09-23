@@ -55,6 +55,12 @@ Pick a template, adjust the text, size, and colors, then copy the SVG straight i
 https://charudatta10.github.io/svg-generator/?type=origin.svg&text1=Hello&text2=World&width=500&height=200
 ```
 
+## Merged repos
+
+- **`badge`** (standalone SVG badge builder) was merged into this repo on
+  23 Sep 2026. Its content lives under [`_archive/badge/`](_archive/badge/),
+  history preserved via `git subtree add --squash`.
+
 ## License
 
 Distributed under the GNU General Public License v3.0 (GPL-3.0).
