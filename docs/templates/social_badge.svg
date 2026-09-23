@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">
-  <rect x="0" y="0" width="{width}" height="{height}" fill="#0074D9" />
-  <text x="50" y="30" text-anchor="middle" fill="white">{text1}</text>
+{{# c = width / 2 }}
+<svg xmlns="http://www.w3.org/2000/svg" width="{{width}}" height="{{height}}" viewBox="0 0 {{width}} {{height}}" role="img" aria-label="{{text1}}">
+  <rect width="{{width}}" height="{{height}}" rx="{{0.5 * height}}" fill="#0074D9"/>
+  <text x="{{c}}" y="{{0.7 * height}}" text-anchor="middle" font-family="Verdana, sans-serif" font-size="{{0.4 * height}}" font-weight="bold" fill="#ffffff">{{text1}}</text>
 </svg>

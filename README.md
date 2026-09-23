@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/github/license/charudatta10/svg-generator)
 
 <!-- Badges: Project Status GitHub -->
-![license](https://flat.badgen.net/static/license/EULA/blue)
+![license](https://flat.badgen.net/static/license/GPL-3.0/blue)
 ![release](https://flat.badgen.net/github/release/charudatta10/SVG_Generator)
 ![commits](https://flat.badgen.net/github/commits/charudatta10/SVG_Generator)
 ![last-commit](https://flat.badgen.net/github/last-commit/charudatta10/SVG_Generator)
@@ -32,7 +32,8 @@ Try it live: **[SVG Generator on GitHub Pages](https://charudatta10.github.io/sv
 ## Features 🌟
 
 - Create banners. 
-- Create badges. 
+- Create badges — shields-style two-color and flat single-color badges with pill / rounded / square shapes and optional outline.
+- Choose shapes, colors, outline, and export as SVG or Markdown data-URI.
   
 ## Getting Started 🌱
 
@@ -58,7 +59,7 @@ https://charudatta10.github.io/svg-generator/?type=origin.svg&text1=Hello&text2=
 
 Distributed under the GNU General Public License v3.0 (GPL-3.0).
 
-✨[Report a 🐛 or Request a ⭐](https://github.com/charudatta10/legendary-dollop/issues)✨
+✨[Report a 🐛 or Request a ⭐](https://github.com/charudatta10/svg-generator/issues)✨
 
 © 2025 Charudatta Korde. Some Rights Reserved. Attribution Required. Non-Commercial Use & Share-Alike.  
 

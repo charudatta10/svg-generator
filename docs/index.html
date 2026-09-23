@@ -198,6 +198,10 @@ const TEMPLATES = {
   "rainbow.svg":        { label: "Rainbow text",      fields: ["text1", "width", "height"],          defaults: { text1: "Rainbow", width: 500, height: 200 } },
   "text-box.svg":       { label: "Text box",          fields: ["text1", "width", "height"],          defaults: { text1: "TEXT BOX", width: 350, height: 200 } },
   "typewriter.svg":     { label: "Typewriter",        fields: ["text1", "width", "height"],          defaults: { text1: "Hello, world!", width: 500, height: 200 } },
+  "shields-badge.svg":  { label: "Shields badge",     fields: ["left_text", "right_text", "left_color", "right_color", "font_color", "shape", "outline", "outline_color"],
+                          defaults: { left_text: "Build", right_text: "Passing", left_color: "#555555", right_color: "#ff9800", font_color: "#ffffff", shape: "rounded", outline: "off", outline_color: "#222222" } },
+  "flat-badge.svg":     { label: "Flat badge",        fields: ["right_text", "right_color", "font_color", "shape", "outline", "outline_color"],
+                          defaults: { right_text: "Packaging", right_color: "#97ca00", font_color: "#ffffff", shape: "rounded", outline: "off", outline_color: "#222222" } },
   "classic-badge.svg":  { label: "Classic badge",     fields: ["text1", "text2", "width", "height"], defaults: { text1: "https://img.icons8.com/color/48/github.png", text2: "Badge", width: 180, height: 60 } },
   "social_badge.svg":   { label: "Social badge",      fields: ["text1", "width", "height"],          defaults: { text1: "Hello", width: 100, height: 50 } },
   "badge_template.svg": { label: "Badge · Jinja2",    fields: ["left_text", "right_text", "font_color", "left_color", "right_color", "width", "height"],
@@ -206,15 +210,22 @@ const TEMPLATES = {
 };
 
 const FIELD_DEFS = {
-  text1:       { type: "text",   label: "Text 1" },
-  text2:       { type: "text",   label: "Text 2 (subtitle / icon URL)" },
-  width:       { type: "number", label: "Width (px)" },
-  height:      { type: "number", label: "Height (px)" },
-  left_text:   { type: "text",   label: "Left text" },
-  right_text:  { type: "text",   label: "Right text" },
-  font_color:  { type: "color",  label: "Font color" },
-  left_color:  { type: "color",  label: "Left fill" },
-  right_color: { type: "color",  label: "Right fill" },
+  text1:       { type: "text",    label: "Text 1" },
+  text2:       { type: "text",    label: "Text 2 (subtitle / icon URL)" },
+  width:       { type: "number",  label: "Width (px)" },
+  height:      { type: "number",  label: "Height (px)" },
+  left_text:   { type: "text",    label: "Left text" },
+  right_text:  { type: "text",    label: "Right text" },
+  font_color:  { type: "color",   label: "Font color" },
+  left_color:  { type: "color",   label: "Left fill" },
+  right_color: { type: "color",   label: "Right fill" },
+  shape:       { type: "select",  label: "Shape", options: [
+                  { value: "pill", label: "Pill" },
+                  { value: "rounded", label: "Rounded" },
+                  { value: "square", label: "Square" },
+                ] },
+  outline:     { type: "checkbox", label: "Outline" },
+  outline_color: { type: "color",  label: "Outline color" },
 };
 
 /* ---- small helpers ---------------------------------------------------- */
@@ -232,7 +243,22 @@ function setStatus(msg, kind) {
   el.className = "status " + (kind || "");
 }
 
-/* ---- safe arithmetic evaluator (Jinja2-style {{ expr }}) ---------------- */
+/* ---- safe expression evaluator (Jinja2-style {{ expr }}) ----------------- */
+/* Supports numbers, single/double-quoted strings, + - * / ( ), == != < <= > >=,
+   && || ! ternary (?:), and function calls max()/min()/len(). Identifier values
+   are XML-escaped before use so user text can never break out of the SVG.       */
+const FUNCS = {
+  max: (...a) => Math.max(...a.map(Number)),
+  min: (...a) => Math.min(...a.map(Number)),
+  len: (s) => String(s ?? "").length,
+};
+
+function isTruthy(v) {
+  if (v === undefined || (typeof v === "number" && Number.isNaN(v))) return false;
+  if (typeof v === "string") return v !== "";
+  return Boolean(v);
+}
+
 function tokenize(src) {
   const out = [];
   let i = 0;
@@ -245,13 +271,24 @@ function tokenize(src) {
       out.push({ type: "num", value: parseFloat(src.slice(i, j)) });
       i = j; continue;
     }
+    if (c === "'" || c === '"') {
+      const q = c;
+      let j = i + 1;
+      while (j < src.length && src[j] !== q) j++;
+      out.push({ type: "str", value: src.slice(i + 1, j) });
+      i = j + 1; continue;
+    }
     if (/[A-Za-z_]/.test(c)) {
       let j = i;
       while (j < src.length && /[A-Za-z0-9_]/.test(src[j])) j++;
       out.push({ type: "id", value: src.slice(i, j) });
       i = j; continue;
     }
-    if ("+-*/()".includes(c)) { out.push({ type: "op", value: c }); i++; continue; }
+    const two = src.slice(i, i + 2);
+    if (["==", "!=", "<=", ">=", "&&", "||"].includes(two)) {
+      out.push({ type: "op", value: two }); i += 2; continue;
+    }
+    if ("+-*/(),?:<>!".includes(c)) { out.push({ type: "op", value: c }); i++; continue; }
     i++;
   }
   return out;
@@ -263,48 +300,120 @@ function evalExpr(src, vars) {
   const peek = () => toks[pos];
   const next = () => toks[pos++];
 
-  function parseExpr() {
+  function parseTernary() {
+    const cond = parseOr();
+    if (peek() && peek().type === "op" && peek().value === "?") {
+      next();
+      const a = parseTernary();
+      if (peek() && peek().type === "op" && peek().value === ":") next();
+      const b = parseTernary();
+      return isTruthy(cond) ? a : b;
+    }
+    return cond;
+  }
+  function parseOr() {
+    let a = parseAnd();
+    while (peek() && peek().type === "op" && peek().value === "||") {
+      next();
+      const b = parseAnd();
+      a = isTruthy(a) || isTruthy(b) ? 1 : 0;
+    }
+    return a;
+  }
+  function parseAnd() {
+    let a = parseEquality();
+    while (peek() && peek().type === "op" && peek().value === "&&") {
+      next();
+      const b = parseEquality();
+      a = isTruthy(a) && isTruthy(b) ? 1 : 0;
+    }
+    return a;
+  }
+  function parseEquality() {
+    let a = parseRelational();
+    while (peek() && peek().type === "op" && (peek().value === "==" || peek().value === "!=")) {
+      const op = next().value;
+      const b = parseRelational();
+      const eq = String(a) === String(b);
+      a = op === "==" ? (eq ? 1 : 0) : (eq ? 0 : 1);
+    }
+    return a;
+  }
+  function parseRelational() {
+    let a = parseAdditive();
+    while (peek() && peek().type === "op" && ["<", "<=", ">", ">="].includes(peek().value)) {
+      const op = next().value;
+      const b = parseAdditive();
+      const n = typeof a === "number" && typeof b === "number";
+      const left = n ? a : String(a);
+      const right = n ? b : String(b);
+      const r = op === "<" ? left < right : op === "<=" ? left <= right : op === ">" ? left > right : left >= right;
+      a = r ? 1 : 0;
+    }
+    return a;
+  }
+  function parseAdditive() {
     let a = parseTerm();
     while (peek() && peek().type === "op" && (peek().value === "+" || peek().value === "-")) {
       const op = next().value;
       const b = parseTerm();
-      a = op === "+" ? a + b : a - b;
+      if (op === "+") a = typeof a === "string" || typeof b === "string" ? String(a) + String(b) : a + b;
+      else a = a - b;
     }
     return a;
   }
   function parseTerm() {
-    let a = parseFactor();
+    let a = parseUnary();
     while (peek() && peek().type === "op" && (peek().value === "*" || peek().value === "/")) {
       const op = next().value;
-      const b = parseFactor();
+      const b = parseUnary();
       a = op === "*" ? a * b : a / b;
     }
     return a;
   }
-  function parseFactor() {
+  function parseUnary() {
+    const t = peek();
+    if (t && t.type === "op") {
+      if (t.value === "-") { next(); return -parseUnary(); }
+      if (t.value === "+") { next(); return parseUnary(); }
+      if (t.value === "!") { next(); return isTruthy(parseUnary()) ? 0 : 1; }
+    }
+    return parsePrimary();
+  }
+  function parsePrimary() {
     const t = peek();
     if (!t) return NaN;
-    if (t.type === "op" && t.value === "-") { next(); return -parseFactor(); }
-    if (t.type === "op" && t.value === "+") { next(); return parseFactor(); }
     if (t.type === "op" && t.value === "(") {
       next();
-      const v = parseExpr();
-      next();
+      const v = parseTernary();
+      if (peek() && peek().type === "op" && peek().value === ")") next();
       return v;
     }
-    if (t.type === "num") { next(); return t.value; }
+    if (t.type === "num" || t.type === "str") { next(); return t.value; }
     if (t.type === "id") {
-      next();
-      const v = vars[t.value];
+      const name = next().value;
+      if (peek() && peek().type === "op" && peek().value === "(") {
+        next();
+        const args = [];
+        while (peek() && !(peek().type === "op" && peek().value === ")")) {
+          args.push(parseTernary());
+          if (peek() && peek().type === "op" && peek().value === ",") next();
+        }
+        if (peek()) next();
+        const fn = FUNCS[name];
+        if (!fn) return NaN;
+        try { return fn(...args); } catch { return NaN; }
+      }
+      const v = vars[name];
       if (v === undefined) return NaN;
       const n = Number(v);
-      return isNaN(n) ? v : n;
+      return isFinite(n) ? n : xmlEscape(String(v));
     }
     return NaN;
   }
 
   try {
-    return parseExpr();
+    return parseTernary();
   } catch {
     return NaN;
   }
@@ -320,9 +429,24 @@ async function loadTemplate(name) {
   return templateCache[name];
 }
 
+function fmt(v) {
+  if (typeof v === "number") return Math.round(v * 1000) / 1000;
+  return v;
+}
+
 function renderJinja(tpl, vars) {
-  return tpl.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (m, expr) =>
-    xmlEscape(String(evalExpr(expr, vars))));
+  const env = Object.assign({}, vars);
+  return tpl.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (m, expr) => {
+    const body = expr.trim();
+    if (body.charAt(0) === "#") {
+      for (const part of body.slice(1).split(";")) {
+        const eq = part.indexOf("=");
+        if (eq > 0) env[part.slice(0, eq).trim()] = evalExpr(part.slice(eq + 1), env);
+      }
+      return "";
+    }
+    return String(fmt(evalExpr(body, env)));
+  });
 }
 
 function renderPlain(tpl, values) {
@@ -359,14 +483,13 @@ Object.keys(TEMPLATES).forEach((name) => {
 });
 
 function collectValues() {
-  const name = selectEl.value;
   const out = {};
   for (const key of Object.keys(FIELD_DEFS)) {
-    const input = document.querySelector('input[data-field="' + key + '"]');
-    out[key] = input ? input.value : "";
+    const el = document.querySelector('[data-field="' + key + '"]');
+    if (!el) continue;
+    out[key] = el.type === "checkbox" ? (el.checked ? "on" : "off") : el.value;
   }
-  if (!(name in TEMPLATES)) return out;
-  return TEMPLATES[name].defaults ? Object.assign({}, out) : out;
+  return out;
 }
 
 function buildFields() {
@@ -384,7 +507,6 @@ function buildFields() {
   for (let i = 0; i < spec.fields.length; i += 2) {
     pairs.push(spec.fields.slice(i, i + 2));
   }
-  wrap.innerHTML = "";
   for (const pair of pairs) {
     const row = document.createElement("div");
     row.className = "row";
@@ -394,15 +516,31 @@ function buildFields() {
       const label = document.createElement("label");
       label.textContent = def.label;
       label.htmlFor = "field-" + key;
-      const input = document.createElement("input");
-      input.id = "field-" + key;
-      input.dataset.field = key;
-      input.type = def.type;
-      input.value = urlParams[key] !== undefined ? urlParams[key] : spec.defaults[key];
-      if (def.type === "color") input.value = String(input.value || "#ffffff");
-      input.addEventListener("input", renderCurrent);
+      const value = urlParams[key] !== undefined ? urlParams[key] : spec.defaults[key];
+      const ctrl = document.createElement(def.type === "select" ? "select" : "input");
+      ctrl.id = "field-" + key;
+      ctrl.dataset.field = key;
+      if (def.type === "select") {
+        for (const opt of def.options || []) {
+          const o = document.createElement("option");
+          o.value = opt.value;
+          o.textContent = opt.label;
+          ctrl.appendChild(o);
+        }
+        ctrl.value = value;
+      } else if (def.type === "checkbox") {
+        ctrl.type = "checkbox";
+        ctrl.checked = value === "on" || value === "1";
+      } else {
+        ctrl.type = def.type;
+        ctrl.value = def.type === "color" ? String(value || "#ffffff") : String(value ?? "");
+      }
+      ctrl.addEventListener("input", renderCurrent);
+      if (def.type === "select" || def.type === "checkbox") {
+        ctrl.addEventListener("change", renderCurrent);
+      }
       col.appendChild(label);
-      col.appendChild(input);
+      col.appendChild(ctrl);
       row.appendChild(col);
     }
     wrap.appendChild(row);
@@ -412,8 +550,14 @@ function buildFields() {
 function showPreview(svg, values) {
   const frame = $("preview");
   frame.srcdoc = svg;
-  const w = parseInt(values.width, 10);
-  const h = parseInt(values.height, 10);
+  let w = parseInt(values.width, 10);
+  let h = parseInt(values.height, 10);
+  if (!(w > 0) || !(h > 0)) {
+    const mw = svg.match(/width\s*=\s*"?(\d+)/);
+    const mh = svg.match(/height\s*=\s*"?(\d+)/);
+    if (mw) w = parseInt(mw[1], 10);
+    if (mh) h = parseInt(mh[1], 10);
+  }
   frame.style.width = (w > 0 ? w : 600) + "px";
   frame.style.height = (h > 0 ? h + 20 : 200) + "px";
   frame.style.maxWidth = "100%";
@@ -431,8 +575,11 @@ function copyText(text) {
 $("copy-svg").addEventListener("click", () =>
   copyText(currentSvg()).then(() => setStatus("SVG copied to clipboard", "ok")));
 
-$("copy-md").addEventListener("click", () =>
-  copyText(currentSvg()).then(() => setStatus("Markdown (inline SVG) copied", "ok")));
+$("copy-md").addEventListener("click", () => {
+  const md = "![Badge](data:image/svg+xml;base64," +
+    btoa(unescape(encodeURIComponent(currentSvg()))) + ")";
+  copyText(md).then(() => setStatus("Markdown (data-URI badge) copied", "ok"));
+});
 
 $("download").addEventListener("click", () => {
   const name = selectEl.value;

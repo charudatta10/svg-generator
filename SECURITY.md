@@ -2,10 +2,10 @@
 
 ## Supported Versions
 
-Only current version is sported for vulnerability and bugfixes.
+Only the current version is supported for vulnerability and bugfixes.
 
 ## Reporting a Vulnerability
 
-Create an issue report vulnerability and tag it with "tag:bug_report".
+Report vulnerabilities by creating an issue on the repository and tagging it with `bug_report`.
 
-The issue will be resolved ASAP. 
+The issue will be resolved as soon as possible.
